@@ -1,7 +1,8 @@
 import concurrent.futures
+import logging
 
 from huggingface import Embedding
-from providers import VectorStore, Sanitize
+from providers import VectorStore, Sanitize, AnomalyDetection
 
 from pydantic import BaseModel
 from enum import Enum
@@ -62,10 +63,10 @@ class Guardrail:
             )
 
             malicious_similarity = future_malicious_similarity.result()
-            anomaly = future_anomaly.result()
-            entropy = future_entropy.result()
+            _, anomaly_score = future_anomaly.result()
+            entropy_score = future_entropy.result()
 
-        score = self.compute_score(malicious_similarity, anomaly, entropy)
+        score = self.compute_score(malicious_similarity, anomaly_score, entropy_score)
         if score > 0.8:
             return {"blocked": True, "reason": "compound score above threshold"}
 
@@ -75,7 +76,7 @@ class Guardrail:
 
         return {"blocked": False, "reason": None}
 
-    def query_entropy(self, query):
+    def query_entropy(self, query: str):
         tokens = nltk.word_tokenize(query)
         total_tokens = len(tokens)
         if total_tokens == 0:
@@ -84,8 +85,19 @@ class Guardrail:
         entropy = sum(-p * math.log2(p) for p in (count / total_tokens for count in freq.values()))
         return entropy
        
-    def query_anomaly_detection(self, query_embedding):
-        pass
+    def query_anomaly_detection(self, query: str) -> tuple[str, float]:
+        model, vectorizer = AnomalyDetection.bootstrap()
+        token = vectorizer.transform([query])
+        
+        prediction: int = model.predict(token)
+        anomaly_score: float = model.decision_function(token)
+
+        result = "malicious" if prediction == 1 else "benign"
+        
+        logging.info(f"Prediction: {result}")
+        logging.info(f"Anomaly Score: {anomaly_score}")
+    
+        return result, anomaly_score
 
     def query_malicious_similarity(self, query_embedding):
         similar_embedding = self.vector_store.find_similar(query_embedding)
