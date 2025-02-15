@@ -7,6 +7,12 @@ from pydantic import BaseModel
 from enum import Enum
 import numpy as np
 
+import torch.nn.functional as F
+import math 
+
+from collections import Counter
+import nltk
+nltk.download('punkt') 
 
 class StoreType(str, Enum):
     FAISS = "FAISS"
@@ -46,13 +52,13 @@ class Guardrail:
         query_embedding = Embedding.transform(query)
         with concurrent.futures.ThreadPoolExecutor() as executor:
             future_malicious_similarity = executor.submit(
-                self.check_malicious_similarity, query_embedding
+                self.query_malicious_similarity, query_embedding
             )
             future_anomaly = executor.submit(
                 self.query_anomaly_detection, query_embedding
             )
             future_entropy = executor.submit(
-                self.query_cross_entropy, query_embedding
+                self.query_entropy, query
             )
 
             malicious_similarity = future_malicious_similarity.result()
@@ -69,9 +75,15 @@ class Guardrail:
 
         return {"blocked": False, "reason": None}
 
-    def query_cross_entropy(self, query_embedding):
-        pass
-
+    def query_entropy(self, query):
+        tokens = nltk.word_tokenize(query)
+        total_tokens = len(tokens)
+        if total_tokens == 0:
+            return 0.0
+        freq = Counter(tokens)
+        entropy = sum(-p * math.log2(p) for p in (count / total_tokens for count in freq.values()))
+        return entropy
+       
     def query_anomaly_detection(self, query_embedding):
         pass
 
