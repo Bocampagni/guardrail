@@ -9,11 +9,13 @@ from enum import Enum
 import numpy as np
 
 import torch.nn.functional as F
-import math 
+import math
 
 from collections import Counter
 import nltk
-nltk.download('punkt') 
+
+nltk.download("punkt")
+
 
 class StoreType(str, Enum):
     FAISS = "FAISS"
@@ -76,27 +78,30 @@ class Guardrail:
 
         return {"blocked": False, "reason": None}
 
-    def query_entropy(self, query: str):
+    def query_entropy(self, query: str) -> float:
         tokens = nltk.word_tokenize(query)
         total_tokens = len(tokens)
         if total_tokens == 0:
             return 0.0
         freq = Counter(tokens)
-        entropy = sum(-p * math.log2(p) for p in (count / total_tokens for count in freq.values()))
+        entropy = sum(
+            -p * math.log2(p) for p in (count / total_tokens for count in freq.values())
+        )
+        logging.info(f"Entropy: {entropy}")
         return entropy
-       
+
     def query_anomaly_detection(self, query: str) -> tuple[str, float]:
         model, vectorizer = AnomalyDetection.bootstrap()
         token = vectorizer.transform([query])
-        
+
         prediction: int = model.predict(token)
         anomaly_score: float = model.decision_function(token)
 
-        result = "malicious" if prediction == 1 else "benign"
-        
+        result = "Normal" if prediction == 1 else "Anomaly"
+
         logging.info(f"Prediction: {result}")
         logging.info(f"Anomaly Score: {anomaly_score}")
-    
+
         return result, anomaly_score
 
     def query_malicious_similarity(self, query_embedding):
@@ -109,6 +114,6 @@ class Guardrail:
     def compute_score(self, malicious_similarity, anomaly, entropy):
         weights = np.array([3.0, 2.0, 1.0])
         values = np.array([malicious_similarity, anomaly, entropy]) * weights
-        exp_values = np.exp(values - np.max(values))  
+        exp_values = np.exp(values - np.max(values))
         softmax_scores = exp_values / np.sum(exp_values)
         return np.sum(softmax_scores)
