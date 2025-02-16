@@ -2,3 +2,4 @@
 *.parquet
 *.csv
 .env
+*.pyc
