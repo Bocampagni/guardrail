@@ -12,7 +12,7 @@ from providers import Sanitize, AnomalyDetection
 from collections import Counter
 
 nltk.download("punkt")
-
+nltk.download('punkt_tab')
 class Guardrail:
     def __init__(
         self,
@@ -30,21 +30,9 @@ class Guardrail:
         if Sanitize.contains_invisible_characters(query):
             return {"blocked": True, "reason": "invisible characters"}
         
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future_malicious_similarity = executor.submit(
-                self.query_malicious_similarity, query
-            )
-            future_anomaly = executor.submit(
-                self.query_anomaly_detection, query
-            )
-            future_entropy = executor.submit(
-                self.query_entropy, query
-            )
-
-            malicious_similarity = future_malicious_similarity.result()
-            _, anomaly_score = future_anomaly.result()
-            entropy_score = future_entropy.result()
-
+        malicious_similarity = self.query_malicious_similarity(query)
+        _, anomaly_score = self.query_anomaly_detection(query)
+        entropy_score = self.query_entropy(query)
         score = self.compute_score(malicious_similarity, anomaly_score, entropy_score)
         if score > 0.8:
             return {"blocked": True, "reason": "compound score above threshold"}
@@ -69,7 +57,7 @@ class Guardrail:
 
     def query_anomaly_detection(self, query: str) -> tuple[str, float]:
         model, vectorizer = AnomalyDetection.bootstrap()
-        token = vectorizer.transform([query])
+        token = vectorizer.transform([query]).toarray()
 
         prediction: int = model.predict(token)
         anomaly_score: float = model.decision_function(token)
@@ -88,7 +76,7 @@ class Guardrail:
                 {
                     "$vectorSearch": {
                         "index": "vector_index",
-                        "queryVector": embedding,
+                        "queryVector": embedding.tolist(),
                         "path": "embedding",
                         "exact": True,
                         "limit": 1
