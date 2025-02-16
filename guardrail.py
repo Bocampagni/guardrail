@@ -16,15 +16,11 @@ nltk.download("punkt")
 class Guardrail:
     def __init__(
         self,
-        model: str | None,
-        langfuse: str | None,
         vector_store: pymongo.collection.Collection | faiss.Index ,
         similarity_upper_bound: float = 0.8,
         anomaly_upper_bound: float = 0.8,
         entropy_upper_bound: float = 0.8,
     ):
-        self.model = model
-        self.langfuse = langfuse
         self.vector_store = vector_store
         self.similarity_upper_bound = similarity_upper_bound
         self.anomaly_upper_bound = anomaly_upper_bound
