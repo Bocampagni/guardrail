@@ -1,5 +1,10 @@
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
 import torch
+import transformers
+
+import logging
+logging.getLogger('torch').disabled = True
+transformers.logging.set_verbosity_error()
 
 TOKENIZER = "ProtectAI/deberta-v3-base-prompt-injection-v2"
 MODEL = "ProtectAI/deberta-v3-base-prompt-injection-v2"

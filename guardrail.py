@@ -31,17 +31,22 @@ class Guardrail:
             return {"blocked": True, "reason": "invisible characters"}
         
         malicious_similarity = self.query_malicious_similarity(query)
-        _, anomaly_score = self.query_anomaly_detection(query)
+        if malicious_similarity > self.similarity_upper_bound:
+            return {"blocked": True, "reason": "malicious similarity above threshold"}
+         
+        anomaly, anomaly_score = self.query_anomaly_detection(query)
+        if anomaly == "Anomaly" and abs(anomaly_score) < self.anomaly_upper_bound:
+            return {"blocked": True, "reason": "anomaly score above threshold"}
+            
         entropy_score = self.query_entropy(query)
-        score = self.compute_score(malicious_similarity, anomaly_score, entropy_score)
-        if score > 0.8:
-            return {"blocked": True, "reason": "compound score above threshold"}
-
+        if entropy_score > self.entropy_upper_bound:
+            return {"blocked": True, "reason": "entropy score above threshold"}
+        
         validation_model_prediction = self.invoke_validation_model(query)
         if validation_model_prediction.get("prediction") == "INJECTION":
             return {"blocked": True, "reason": "validation model block"}
 
-        return {"blocked": False, "reason": None}
+        return {"blocked": False, "reason": "no reason"}
 
     def query_entropy(self, query: str) -> float:
         tokens = nltk.word_tokenize(query)
@@ -60,14 +65,14 @@ class Guardrail:
         token = vectorizer.transform([query]).toarray()
 
         prediction: int = model.predict(token)
-        anomaly_score: float = model.decision_function(token)
+        anomaly_score: float = model.decision_function(token)[0]
 
         result = "Normal" if prediction == 1 else "Anomaly"
 
         logging.info(f"Prediction: {result}")
         logging.info(f"Anomaly Score: {anomaly_score}")
 
-        return result, anomaly_score
+        return result, abs(anomaly_score) ##  Quanto menor, mais anômalo
 
     def query_malicious_similarity(self, query: str) -> float:
         embedding = Embedding.transform(query)
@@ -78,15 +83,15 @@ class Guardrail:
                         "index": "vector_index",
                         "queryVector": embedding.tolist(),
                         "path": "embedding",
-                        "exact": True,
-                        "limit": 1
+                        "numCandidates": 5,
+                        "limit": 5
                     }
                 }, {
                     "$project": {
                         "_id": 0,
                         "text": 1,
                         "score": {
-                        "$meta": "vectorSearchScore"
+                            "$meta": "vectorSearchScore"
                         }
                     }
                 }
