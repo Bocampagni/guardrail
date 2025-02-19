@@ -1,23 +1,39 @@
-# Guardrail: A security framework to prevent prompt injection, hijacking and adversarial attacks in LLMs
+<p align="center">
+   <img src="./docs/images/guardrail_logo.png"  width="250">
+</p>
 
-Guardrail is a robust framework designed to detect and prevent adversarial threats, prompt injections, and other security vulnerabilities in generative AI models. It leverages a combination of semantic similarity analysis, anomaly detection, entropy calculations, and validation models to ensure that only safe queries are processed.
+# Guardrail
 
-## Features
-- **Threat Detection**: Analyze and prevent malicious queries based on similarity to known attack vectors.
-- **Anomaly Detection**: Use advanced machine learning techniques to detect unusual patterns in queries.
-- **Entropy Calculation**: Measure the unpredictability of a query to detect abnormal inputs.
-- **Parallel Processing**: Utilize concurrent processing to efficiently handle multiple threat detection mechanisms.
-- **Customizable Security Levels**: Set thresholds for similarity, anomaly, and entropy levels to adjust the level of protection.
+**Guardrail** is a robust framework designed to detect and prevent adversarial threats, prompt injections, and other security vulnerabilities in generative AI models. It leverages a combination of semantic similarity analysis, anomaly detection, entropy calculations, and validation models to ensure that only safe queries are processed.
 
-## How It Works
+# Modules
+### Sanitization
+Uses the `Sanitize` module to check if the prompt contains invisible characters. If so, the prompt is immediately blocked with the reason `"invisible characters"`.
 
-The `Guardrail` class is the core of the framework, handling the logic for detecting and blocking malicious queries. Here's a breakdown of the process:
+### Embedding Similarity
+The `query_malicious_similarity(query)` method generates an embedding for the prompt and compares it with embeddings of known attacks. If the similarity exceeds the defined threshold, the prompt is blocked with the justification `"malicious similarity above threshold"`.
 
-1. **Sanitize Input**: Before processing, the input query is checked for invisible characters (e.g., zero-width spaces) that might be used in prompt injections or bypassing filters.
-2. **Embedding Transformation**: The input query is transformed into a vector representation for further analysis.
-3. **Simultaneous Checks**: The system performs the following checks in parallel using `ThreadPoolExecutor`:
-   - **Malicious Similarity**: Compares the query's embedding against a vector store of known malicious queries.
-   - **Anomaly Detection**: Analyzes whether the query deviates from expected behavior using anomaly detection techniques.
-   - **Entropy Calculation**: Computes the unpredictability of the query to detect any unusual patterns.
-4. **Score Calculation**: A compound score is computed based on the results of the three checks. If the score exceeds a certain threshold, the query is blocked.
-5. **Validation Model**: Afterall, the query will be validated through a fine-tunned large language model (e.g., a classifier) for additional protection.
+### Anomaly Detection
+Through the `query_anomaly_detection(query)` method, the prompt is transformed into a vector and analyzed by an anomaly detection model. If the result indicates `"Anomaly"` with a score suggesting atypical behavior, the prompt is blocked with the reason `"anomaly score above threshold"`.
+
+### Entropy Analysis
+The `query_entropy(query)` method calculates the entropy of the prompt using NLTK tokenization. High entropy may indicate suspicious patterns, and if it exceeds the threshold, the prompt is blocked with the reason `"entropy score above threshold"`.
+
+### Validation by Language Model
+Finally, the `invoke_validation_model(query)` method calls the DeBERTa model to classify the prompt. If the model classifies the prompt as `"INJECTION"`, it is blocked with the reason `"validation model block"`.
+
+
+# Install
+```bash
+https://github.com/Bocampagni/guardrail.git
+cd guardrail
+pip install -r requirements.txt
+```
+
+# License 
+This project is licensed under the MIT License. Please refer to the LICENSE file for detailed information.
+
+# Future work
+Monitoring on blocked queries can be persisted using Langfuse or Langsmith clients, which can be injected in `Guardrail` class. It's important to note that both must have some common interface in order to work in a transparent way.
+
+I may upload this to Pypi, but re-work on abstractions should be done first.
