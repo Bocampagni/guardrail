@@ -25,7 +25,7 @@ Finally, the `invoke_validation_model(query)` method calls the DeBERTa model to 
 
 # Install
 ```bash
-https://github.com/Bocampagni/guardrail.git
+git clone https://github.com/Bocampagni/guardrail.git
 cd guardrail
 pip install -r requirements.txt
 ```
