@@ -3,69 +3,16 @@ import nltk
 import pymongo
 import faiss
 import math
-import numpy as np
 import pymongo.collection
 
 from huggingface import Embedding, Deberta
 from providers import Sanitize, AnomalyDetection
 from collections import Counter
-from abc import ABC, abstractmethod
+from providers.MongoDBVectorStore import MongoDBVectorStore
+from providers.FaissVectorStore import FaissVectorStore
 
 nltk.download("punkt")
 nltk.download("punkt_tab")
-
-class VectorStoreStrategy(ABC):
-    @abstractmethod
-    def search_similar(self, embedding, top_k=5):
-        pass
-
-
-class MongoDBVectorStore(VectorStoreStrategy):
-    def __init__(self, collection, index_name="vector_index", embedding_path="embedding"):
-        self.collection = collection
-        self.index_name = index_name
-        self.embedding_path = embedding_path
-    def search_similar(self, embedding, top_k=5):
-        pipeline = [
-            {
-                "$vectorSearch": {
-                    "index": self.index_name,
-                    "queryVector": embedding.tolist(),
-                    "path": self.embedding_path,
-                    "numCandidates": top_k * 2,
-                    "limit": top_k,
-                }
-            },
-            {
-                "$project": {
-                    "_id": 0,
-                    "text": 1,
-                    "score": {"$meta": "vectorSearchScore"},
-                }
-            },
-        ]
-        return list(self.collection.aggregate(pipeline))
-
-
-class FaissVectorStore(VectorStoreStrategy):
-    def __init__(self, index):
-        self.index = index
-    
-    def search_similar(self, embedding, top_k=5):
-        scores, indices = self.index.search(np.array([embedding]), top_k)
-        return [{"score": float(scores[0][i]), "index": int(indices[0][i])} 
-               for i in range(len(indices[0])) if indices[0][i] >= 0]
-
-
-def create_vector_store_strategy(vector_store):
-    """Factory function to create the appropriate vector store strategy."""
-    if isinstance(vector_store, pymongo.collection.Collection):
-        return MongoDBVectorStore(vector_store)
-    elif isinstance(vector_store, faiss.Index):
-        return FaissVectorStore(vector_store)
-    else:
-        raise ValueError(f"Unsupported vector store type: {type(vector_store)}")
-
 
 class Guardrail:
     def __init__(
@@ -80,7 +27,9 @@ class Guardrail:
         self.similarity_upper_bound = similarity_upper_bound
         self.anomaly_upper_bound = anomaly_upper_bound
         self.entropy_upper_bound = entropy_upper_bound
-        self.vector_store_strategy = vector_store_strategy or create_vector_store_strategy(vector_store)
+        self.vector_store_strategy = (
+            vector_store_strategy or self.create_vector_store_strategy(vector_store)
+        )
 
     def should_block(self, query) -> dict[str, bool | str | None]:
         if Sanitize.contains_invisible_characters(query):
@@ -133,10 +82,10 @@ class Guardrail:
     def query_malicious_similarity(self, query: str, top_k=1) -> float:
         embedding = Embedding.transform(query)
         results = self.vector_store_strategy.search_similar(embedding, top_k)
-        
+
         if not results:
             return 0.0
-            
+
         return results[0].get("score", 0.0)
 
     def invoke_validation_model(self, query):
@@ -151,3 +100,11 @@ class Guardrail:
 
     def compute_score(self, malicious_similarity, anomaly, entropy):
         return (malicious_similarity + anomaly + entropy) / 3
+
+    def create_vector_store_strategy(vector_store):
+        if isinstance(vector_store, pymongo.collection.Collection):
+            return MongoDBVectorStore(vector_store)
+        elif isinstance(vector_store, faiss.Index):
+            return FaissVectorStore(vector_store)
+        else:
+            raise ValueError(f"Unsupported vector store type: {type(vector_store)}")
