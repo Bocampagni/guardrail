@@ -1,4 +1,5 @@
 from providers.VectorStoreStrategy import VectorStoreStrategy
+import numpy as np
 
 class FaissVectorStore(VectorStoreStrategy):
     def __init__(self, index):
