@@ -1,10 +1,12 @@
-<p align="center">
-   <img src="./docs/images/guardrail_logo.png"  width="250">
-</p>
-
-# Guardrail
-
-**Guardrail** is a robust framework designed to detect and prevent adversarial threats, prompt injections, and other security vulnerabilities in generative AI models. It leverages a combination of semantic similarity analysis, anomaly detection, entropy calculations, and validation models to ensure that only safe queries are processed.
+<h1>Guardrail</h1>
+<table border="0">
+ <tr>
+    <td><img src="./docs/images/guardrail_logo.png"></td>
+    <td>
+        <p><strong>Guardrail</strong> is a robust framework designed to detect and prevent adversarial threats, prompt injections, and other security vulnerabilities in generative AI models. It leverages a combination of semantic similarity analysis, anomaly detection, entropy calculations, and validation models to ensure that only safe queries are processed.</p>
+    </td>
+ </tr>
+</table>
 
 # Modules
 ### Sanitization
@@ -25,7 +27,7 @@ Finally, the `invoke_validation_model(query)` method calls the DeBERTa model to 
 
 # Install
 ```bash
-git clone https://github.com/Bocampagni/guardrail.git
+git clone git@github.com:Bocampagni/guardrail.git
 cd guardrail
 pip install -r requirements.txt
 ```
@@ -37,3 +39,4 @@ This project is licensed under the MIT License. Please refer to the LICENSE file
 Monitoring on blocked queries can be persisted using Langfuse or Langsmith clients, which can be injected in `Guardrail` class. It's important to note that both must have some common interface in order to work in a transparent way.
 
 I may upload this to Pypi, but re-work on abstractions should be done first.
+
