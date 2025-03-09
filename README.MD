@@ -1,14 +1,10 @@
 <h1>Guardrail</h1>
-<table border="0">
- <tr>
-    <td><img src="./docs/images/guardrail_logo.png"></td>
-    <td>
-        <p><strong>Guardrail</strong> is a robust framework designed to detect and prevent adversarial threats, prompt injections, and other security vulnerabilities in generative AI models. It leverages a combination of semantic similarity analysis, anomaly detection, entropy calculations, and validation models to ensure that only safe queries are processed.</p>
-    </td>
- </tr>
-</table>
+<div align="left">
+  <img src="./docs/images/guardrail_logo.png" width="250" align="left" style="margin-right: 25px" alt="Guardrail Logo">
+  <p><strong>Guardrail</strong> is a robust framework designed to detect and prevent adversarial threats, prompt injections, and other security vulnerabilities in generative AI models. It leverages a combination of semantic similarity analysis, anomaly detection, entropy calculations, and validation models to ensure that only safe queries are processed.</p>
+  <br clear="left"/>
+</div>
 
-# Modules
 ### Sanitization
 Uses the `Sanitize` module to check if the prompt contains invisible characters. If so, the prompt is immediately blocked with the reason `"invisible characters"`.
 
