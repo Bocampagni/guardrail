@@ -1,5 +1,4 @@
 import logging
-import concurrent.futures
 import nltk
 import pymongo
 import faiss
