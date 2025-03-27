@@ -3,3 +3,5 @@
 *.csv
 .env
 *.pyc
+
+trainer_prototype.py
