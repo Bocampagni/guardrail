@@ -101,7 +101,7 @@ class Guardrail:
     def compute_score(self, malicious_similarity, anomaly, entropy):
         return (malicious_similarity + anomaly + entropy) / 3
 
-    def create_vector_store_strategy(vector_store):
+    def create_vector_store_strategy(self, vector_store):
         if isinstance(vector_store, pymongo.collection.Collection):
             return MongoDBVectorStore(vector_store)
         elif isinstance(vector_store, faiss.Index):
