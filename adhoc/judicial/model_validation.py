@@ -8,7 +8,7 @@ model = AutoModelForPreTraining.from_pretrained('neuralmind/bert-base-portuguese
 tokenizer = AutoTokenizer.from_pretrained('neuralmind/bert-base-portuguese-cased', do_lower_case=False)
 dataset = pd.read_csv('../v2/output/translated_text.csv')
 
-for i in range(5): ## Embedding testing
+for i in range(5):
     text = dataset.iloc[i]['prompt']
     print(text)
     input_ids = tokenizer(text, max_length=512, truncation=True, padding="max_length", return_tensors="pt")['input_ids']
