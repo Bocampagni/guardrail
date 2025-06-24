@@ -14,6 +14,7 @@ from providers.FaissVectorStore import FaissVectorStore
 nltk.download("punkt")
 nltk.download("punkt_tab")
 
+
 class Guardrail:
     def __init__(
         self,

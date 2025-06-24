@@ -1,5 +1,6 @@
 from providers.VectorStoreStrategy import VectorStoreStrategy
 
+
 class MongoDBVectorStore(VectorStoreStrategy):
     def __init__(
         self, collection, index_name="vector_index", embedding_path="embedding"
@@ -7,6 +8,7 @@ class MongoDBVectorStore(VectorStoreStrategy):
         self.collection = collection
         self.index_name = index_name
         self.embedding_path = embedding_path
+
     def search_similar(self, embedding, top_k=5):
         pipeline = [
             {
