@@ -1,17 +1,27 @@
+# Guardrail
+# - Passar threshold para gen ai
+# - Implementar FAISS
+# - Deixar no projeto o dataset + acesso com FAISS
+# - Mudar o readme para o compliance do evento
+# - Validar se da pra chegar no que eu coloquei no artigo
+# - Atualizar o artigo até dia 04
+
 import logging
+import math
+from collections import Counter
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
+from typing import Optional, Union
+
+import faiss
 import nltk
 import pymongo
-import faiss
-import math
 import pymongo.collection
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Union
 
-from huggingface import Embedding, Deberta
-from providers import Sanitize, AnomalyDetection
-from collections import Counter
-from providers.MongoDBVectorStore import MongoDBVectorStore
+from huggingface import Deberta, Embedding
+from providers import AnomalyDetection, Sanitize
 from providers.FaissVectorStore import FaissVectorStore
+from providers.MongoDBVectorStore import MongoDBVectorStore
 
 logging.basicConfig(
     level=logging.INFO,
@@ -78,22 +88,38 @@ class Guardrail:
     def __init__(
         self,
         vector_store: Union[pymongo.collection.Collection | faiss.Index],
-        similarity_upper_bound: float = 0.8,
-        anomaly_upper_bound: float = 0.8,
-        entropy_upper_bound: float = 0.8,
-        vector_store_strategy=None,
-        pipeline=True,
-        decision_threshold: Union[float, None] = None,
-    ):
-        if not pipeline and not decision_threshold:
+        similarity_upper_bound: Optional[float] = 0.8,
+        anomaly_upper_bound: Optional[float] = 0.8,
+        entropy_upper_bound: Optional[float] = 0.8,
+        vector_store_strategy: Optional[
+            pymongo.collection.Collection | faiss.Index
+        ] = None,
+        genai_upper_bound: Optional[float] = 0.90,
+        pipeline: bool = True,
+        decision_threshold: Optional[float] = None,
+    ) -> None:
+        if not isinstance(vector_store, (pymongo.collection.Collection, faiss.Index)):
             raise ValueError(
-                "decision_threshold must be set if pipeline is False (mxiture of experts approach)"
+                "vector_store must be an instance of pymongo.collection.Collection or faiss.Index"
             )
+        if not pipeline and decision_threshold is None:
+            raise ValueError(
+                "decision_threshold must be set if pipeline is False (mixture of experts approach)"
+            )
+
+        if pipeline and any(
+            similarity_upper_bound is None,
+            anomaly_upper_bound is None,
+            entropy_upper_bound is None,
+            genai_upper_bound is None,
+        ):
+            raise ValueError("All upper bounds must be set if pipeline is True.")
 
         self.vector_store = vector_store
         self.similarity_upper_bound = similarity_upper_bound
         self.anomaly_upper_bound = anomaly_upper_bound
         self.entropy_upper_bound = entropy_upper_bound
+        self.genai_upper_bound = genai_upper_bound
         self.vector_store_strategy = (
             vector_store_strategy or self.create_vector_store_strategy(vector_store)
         )
@@ -105,8 +131,13 @@ class Guardrail:
             if Sanitize.contains_invisible_characters(query):
                 return {"blocked": True, "reason": "invisible characters"}
 
+            ## get time
+            query_start_time = datetime.now()
             malicious_similarity = query_malicious_similarity(
                 query, self.vector_store_strategy
+            )
+            logging.info(
+                f"Query processed in {datetime.now() - query_start_time} seconds"
             )
             if malicious_similarity > self.similarity_upper_bound:
                 return {
@@ -114,16 +145,28 @@ class Guardrail:
                     "reason": "malicious similarity above threshold",
                 }
 
+            start_time = datetime.now()
             anomaly, anomaly_score = query_anomaly_detection(query)
+            logging.info(
+                f"Anomaly detection processed in {datetime.now() - start_time} seconds"
+            )
             if anomaly == "Anomaly" and abs(anomaly_score) < self.anomaly_upper_bound:
                 return {"blocked": True, "reason": "anomaly score above threshold"}
 
+            start_time = datetime.now()
             entropy_score = query_entropy(query)
+            logging.info(
+                f"Entropy calculation processed in {datetime.now() - start_time} seconds"
+            )
             if entropy_score > self.entropy_upper_bound:
                 return {"blocked": True, "reason": "entropy score above threshold"}
 
+            start_time = datetime.now()
             validation_model_prediction = invoke_validation_model(query)
-            if validation_model_prediction.get("prediction") == "INJECTION":
+            logging.info(
+                f"Validation model processed in {datetime.now() - start_time} seconds"
+            )
+            if validation_model_prediction.get("prediction") == "INJECTION" and validation_model_prediction.get("score", 0.0) > self.genai_upper_bound:
                 return {"blocked": True, "reason": "validation model block"}
 
             return {"blocked": False, "reason": "no reason"}
@@ -134,6 +177,7 @@ class Guardrail:
             if Sanitize.contains_invisible_characters(query):
                 return {"blocked": True, "reason": "invisible characters"}
 
+            start_time = datetime.now()
             results = {}
             try:
                 with ThreadPoolExecutor(max_workers=4) as executor:
@@ -171,6 +215,9 @@ class Guardrail:
             entropy_score = results.get("entropy", 0.0)
             validation_model_prediction = results.get(
                 "validation_model", {"prediction": "INJECTION", "score": 0.0}
+            )
+            logging.info(
+                f"Parallel execution completed in {datetime.now() - start_time} seconds"
             )
 
             normalized_malicious = min(
