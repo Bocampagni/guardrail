@@ -15,6 +15,16 @@ def main():
 
     print("Setting up FAISS guardrail...")
     faiss_index = faiss.read_index("./adhoc/models/malicious_embeddings.index")
+    # Sequential configuration for the FAISS guardrail
+    # guardrail = Guardrail(
+    #     vector_store=faiss_index,
+    #     similarity_upper_bound=0.8,
+    #     anomaly_upper_bound=0.02,
+    #     entropy_upper_bound=4.2,
+    #     genai_upper_bound=0.90,
+    #     decision_threshold=.75,
+    #     pipeline=True,
+    # )
     guardrail = Guardrail(
         vector_store=faiss_index,
         similarity_upper_bound=0.8,

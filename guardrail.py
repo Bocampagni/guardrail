@@ -1,11 +1,3 @@
-# Guardrail
-# - Passar threshold para gen ai
-# - Implementar FAISS
-# - Deixar no projeto o dataset + acesso com FAISS
-# - Mudar o readme para o compliance do evento
-# - Validar se da pra chegar no que eu coloquei no artigo
-# - Atualizar o artigo até dia 04
-
 import logging
 import math
 from collections import Counter
