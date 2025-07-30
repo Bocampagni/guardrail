@@ -31,6 +31,8 @@ logging.basicConfig(
 
 nltk.download("punkt")
 nltk.download("punkt_tab")
+EMBEDDING_MODEL = Embedding.load_embedding_model()
+GENAI_MODEL = Deberta.load_model()
 
 
 def query_entropy(query: str) -> float:
@@ -51,20 +53,27 @@ def query_anomaly_detection(query: str) -> tuple[str, float]:
     token = vectorizer.transform([query]).toarray()
 
     prediction: int = model.predict(token)
-    anomaly_score: float = model.decision_function(token)[0]
+    raw_score: float = model.decision_function(token)[0]
+
+    if prediction == -1:  # Anomaly
+        normalized_score = 1.0 / (1.0 + math.exp(raw_score * 10))
+        normalized_score = max(0.5, normalized_score)
+    else:
+        normalized_score = 1.0 / (1.0 + math.exp(-raw_score * 10))
+        normalized_score = min(0.5, normalized_score)
 
     result = "Normal" if prediction == 1 else "Anomaly"
 
     logging.info(f"Prediction: {result}")
-    logging.info(f"Anomaly Score: {anomaly_score}")
+    logging.info(f"Raw Score: {raw_score}, Normalized Score: {normalized_score}")
 
-    return result, abs(anomaly_score)  ##  Quanto menor, mais anômalo
+    return result, normalized_score  ##  Quanto menor, mais anômalo
 
 
 def query_malicious_similarity(
     query: str, vector_store: pymongo.collection.Collection | faiss.Index, top_k=1
 ) -> float:
-    embedding = Embedding.transform(query)
+    embedding = EMBEDDING_MODEL.encode(query)
     results = vector_store.search_similar(embedding, top_k)
 
     if not results:
@@ -74,7 +83,7 @@ def query_malicious_similarity(
 
 
 def invoke_validation_model(query):
-    classified_text = Deberta.classify_text(query)
+    classified_text = GENAI_MODEL(query)
     text = classified_text[0]["label"]
     score = classified_text[0]["score"]
 
@@ -88,15 +97,15 @@ class Guardrail:
     def __init__(
         self,
         vector_store: Union[pymongo.collection.Collection | faiss.Index],
-        similarity_upper_bound: Optional[float] = 0.8,
-        anomaly_upper_bound: Optional[float] = 0.8,
-        entropy_upper_bound: Optional[float] = 0.8,
+        similarity_upper_bound: Optional[float] = None,
+        anomaly_upper_bound: Optional[float] = None,
+        entropy_upper_bound: Optional[float] = None,
+        genai_upper_bound: Optional[float] = None,
+        decision_threshold: Optional[float] = None,
         vector_store_strategy: Optional[
             pymongo.collection.Collection | faiss.Index
         ] = None,
-        genai_upper_bound: Optional[float] = 0.90,
         pipeline: bool = True,
-        decision_threshold: Optional[float] = None,
     ) -> None:
         if not isinstance(vector_store, (pymongo.collection.Collection, faiss.Index)):
             raise ValueError(
@@ -108,10 +117,12 @@ class Guardrail:
             )
 
         if pipeline and any(
-            similarity_upper_bound is None,
-            anomaly_upper_bound is None,
-            entropy_upper_bound is None,
-            genai_upper_bound is None,
+            [
+                similarity_upper_bound is None,
+                anomaly_upper_bound is None,
+                entropy_upper_bound is None,
+                genai_upper_bound is None,
+            ]
         ):
             raise ValueError("All upper bounds must be set if pipeline is True.")
 
@@ -150,7 +161,7 @@ class Guardrail:
             logging.info(
                 f"Anomaly detection processed in {datetime.now() - start_time} seconds"
             )
-            if anomaly == "Anomaly" and abs(anomaly_score) < self.anomaly_upper_bound:
+            if anomaly == "Anomaly" and anomaly_score < self.anomaly_upper_bound:
                 return {"blocked": True, "reason": "anomaly score above threshold"}
 
             start_time = datetime.now()
@@ -166,7 +177,11 @@ class Guardrail:
             logging.info(
                 f"Validation model processed in {datetime.now() - start_time} seconds"
             )
-            if validation_model_prediction.get("prediction") == "INJECTION" and validation_model_prediction.get("score", 0.0) > self.genai_upper_bound:
+            if (
+                validation_model_prediction.get("prediction") == "INJECTION"
+                and validation_model_prediction.get("score", 0.0)
+                > self.genai_upper_bound
+            ):
                 return {"blocked": True, "reason": "validation model block"}
 
             return {"blocked": False, "reason": "no reason"}
@@ -209,9 +224,7 @@ class Guardrail:
                 return {"blocked": False, "reason": "error during parallel execution"}
 
             malicious_similarity = results.get("malicious_similarity", 0.0)
-            anomaly_result, anomaly_score = results.get(
-                "anomaly_detection", ("Normal", 1.0)
-            )
+            _, anomaly_score = results.get("anomaly_detection", ("Normal", 1.0))
             entropy_score = results.get("entropy", 0.0)
             validation_model_prediction = results.get(
                 "validation_model", {"prediction": "INJECTION", "score": 0.0}
@@ -220,15 +233,15 @@ class Guardrail:
                 f"Parallel execution completed in {datetime.now() - start_time} seconds"
             )
 
-            normalized_malicious = min(
-                malicious_similarity / self.similarity_upper_bound, 1.0
+            normalized_malicious = malicious_similarity / self.similarity_upper_bound
+            normalized_anomaly = 0 if anomaly_score < self.anomaly_upper_bound else min(
+                anomaly_score / self.anomaly_upper_bound, 1.0
             )
-            normalized_anomaly = (
-                (1 - abs(anomaly_score) / self.anomaly_upper_bound)
-                if anomaly_result == "Anomaly"
-                else 0.0
+            normalized_entropy = (
+                0
+                if entropy_score < self.entropy_upper_bound
+                else min(entropy_score / self.entropy_upper_bound, 1.0)
             )
-            normalized_entropy = min(entropy_score / self.entropy_upper_bound, 1.0)
             normalized_validation = (
                 validation_model_prediction.get("score", 0.0)
                 if validation_model_prediction.get("prediction") == "INJECTION"
