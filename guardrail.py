@@ -59,7 +59,7 @@ def query_anomaly_detection(query: str) -> tuple[str, float]:
     logging.info(f"Prediction: {result}")
     logging.info(f"Raw Score: {raw_score}, Normalized Score: {normalized_score}")
 
-    return result, normalized_score  ##  Quanto menor, mais anômalo
+    return result, normalized_score
 
 
 def query_malicious_similarity(
@@ -134,7 +134,6 @@ class Guardrail:
             if Sanitize.contains_invisible_characters(query):
                 return {"blocked": True, "reason": "invisible characters"}
 
-            ## get time
             query_start_time = datetime.now()
             malicious_similarity = query_malicious_similarity(
                 query, self.vector_store_strategy
