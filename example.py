@@ -1,13 +1,9 @@
 from guardrail import Guardrail
-import pymongo
 import dotenv
-import os
 import faiss
 
 if __name__ == "__main__":
     dotenv.load_dotenv()
-    atlas = pymongo.MongoClient(os.environ["MONGODB_URI"])
-    embedding_collection = atlas.get_database("db").get_collection("embeddings")
 
     faiss_index = faiss.read_index("./adhoc/models/malicious_embeddings.index")
 
