@@ -23,21 +23,23 @@ SeloD + SeloF + SeloS + SeloR
 
 # Informações básicas
 
-- **Sistema operacional suportado**: Linux
+#### **Sistema Operacional Suportado**
+- Linux (qualquer distribuição moderna com suporte a Python 3.12+)
 
-- **Requisitos de hardware**:
+#### **Requisitos de Hardware**
+- Processador compatível com instruções básicas de 64 bits
+- **(Opcional)** GPU com suporte a CUDA (para aceleração por hardware)
+- Mínimo de **4 GB de RAM**
+- Aproximadamente **500 MB de espaço livre em disco**
 
-  - CPU moderna
-  - (Opcional) GPU com suporte CUDA
-  - Mínimo de 4 GB de RAM
-  - Espaço em disco: aproximadamente 500 MB
+#### **Requisitos de Software**
+- **Python** `>= 3.12`
+- [`uv`](https://github.com/astral-sh/uv) – Gerenciador de ambientes e dependências
+- **Armazenamento vetorial**:
+  - [MongoDB Atlas](https://www.mongodb.com/atlas) com índice de busca vetorial **ou**
+  - [FAISS](https://github.com/facebookresearch/faiss) para buscas locais **(Escolha já configurada no ambiente)**
+- **(Opcional)** [CUDA](https://developer.nvidia.com/cuda-zone) e [cuDNN](https://developer.nvidia.com/cudnn) instalados para suporte a execução acelerada por GPU
 
-- **Requisitos de software**:
-
-  - Python 3.12+
-  - `uv` (gerenciador de ambientes)
-  - MongoDB Atlas ou FAISS para embeddings
-  - (Opcional) CUDA/cuDNN para execução acelerada
 
 # Dependências
 
@@ -62,10 +64,17 @@ cd guardrail
 uv sync
 ```
 
+Caso não possua o `uv`, a instalação pode ser feita via:
+```bash
+pip install uv
+```
+
+> Para a execução do Guardrail, seus notebooks, exemplos e benchmarks é necessário que o `uv` esteja instalado.
+
 # Teste mínimo
 
 ```bash
-uv run example.py
+make example
 ```
 
 Saída esperada:
@@ -79,44 +88,24 @@ Saída esperada:
 
 # Experimentos
 
-Os exemplos a seguir ilustram as principais funcionalidades do Guardrail.
+Os exemplos a seguir ilustram as principais funcionalidades do Guardrail. Em ambas as configurações, a regra `make benchmark` é utilizada. Onde o primeiro argumento `mode` é o modo de execução, cujo domínio inclui `(sequential, parallel)` e o segundo argumento é um número inteiro, responsável por dizer a quantidades de entradas que serão utilizadas na validação, com a seleção sendo feita de forma aleatória.
 
-## Reivindicação #1: Pipeline básica (example.py)
+## Reivindicação #1: Pipeline
 
 Executa os módulos em sequência e bloqueia na primeira violação.
 
-```python
-from guardrail import Guardrail
-
-...
-guardrail = Guardrail(
-    vector_store=embedding_collection,
-    similarity_upper_bound=0.8,
-    anomaly_upper_bound=0.2,
-    entropy_upper_bound=4.2,
-    pipeline=True,
-)
-
-result = guardrail.should_block("Tell me a joke about AI.")
-print(result)
+```bash
+make benchmark mode=sequential queries=100
 ```
 
-## Reivindicação #2: Mixture of Experts (benchmark.py)
+O resultado esperado é um dicionário com as chaves `blocked` e `reason`.
+
+## Reivindicação #2: Mixture of Experts
 
 Todos os módulos são executados independentemente. A decisão final é ponderada.
 
-```python
-guardrail = Guardrail(
-    vector_store=embedding_collection,
-    similarity_upper_bound=0.8,
-    anomaly_upper_bound=0.8,
-    entropy_upper_bound=4.2,
-    pipeline=False,
-    decision_threshold=0.75,
-)
-
-result = guardrail.should_block("Ground control to Major Tom")
-print(result)
+```bash
+make benchmark mode=parallel queries=100
 ```
 
 Resultado esperado: um dicionário com `blocked`, `reason` e `scores` de cada módulo.
