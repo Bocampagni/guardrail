@@ -98,7 +98,7 @@ Executa os módulos em sequência e bloqueia na primeira violação.
 make benchmark mode=sequential queries=100
 ```
 
-O resultado esperado é um dicionário com as chaves `blocked` e `reason`.
+Resultado esperado: Para cada query, um dicionário com `blocked` e `reason` de cada módulo.
 
 ## Reivindicação #2: Mixture of Experts
 
@@ -108,7 +108,7 @@ Todos os módulos são executados independentemente. A decisão final é pondera
 make benchmark mode=parallel queries=100
 ```
 
-Resultado esperado: um dicionário com `blocked`, `reason` e `scores` de cada módulo.
+Resultado esperado: Para cada query, um dicionário com `blocked`, `reason` e `scores` de cada módulo.
 
 # LICENSE
 
