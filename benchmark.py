@@ -1,6 +1,6 @@
+import argparse
 import logging
 import random
-import sys
 import time
 
 import faiss
@@ -8,14 +8,13 @@ from datasets import load_dataset
 
 from guardrail import Guardrail
 
-NUMBER_OF_QUERIES = 1000
-RANDOM_SEED = random.randint(0, NUMBER_OF_QUERIES)
+RANDOM_SEED = random.randint(0, 1000)
 
 
-def load_test_data():
-    print("Loading dataset...")
+def load_test_data(num_queries=100):
+    print(f"Loading dataset with {num_queries} queries...")
     ds = load_dataset("reshabhs/SPML_Chatbot_Prompt_Injection")
-    return ds["train"].shuffle(seed=RANDOM_SEED).select(range(NUMBER_OF_QUERIES))
+    return ds["train"].shuffle(seed=RANDOM_SEED).select(range(num_queries))
 
 
 def setup_vector_store():
@@ -23,8 +22,8 @@ def setup_vector_store():
     return faiss.read_index("./adhoc/models/malicious_embeddings.index")
 
 
-def setup_configuration():
-    if len(sys.argv) > 1 and sys.argv[1] == "sequential":
+def setup_configuration(mode="parallel"):
+    if mode == "sequential":
         print("Running in sequential mode...")
         return {
             "similarity_upper_bound": 0.8,
@@ -46,8 +45,25 @@ def setup_configuration():
 
 
 def main():
-    config = setup_configuration()
-    test_data = load_test_data()
+    parser = argparse.ArgumentParser(description="Run guardrail benchmark")
+    parser.add_argument(
+        "--mode",
+        default="parallel",
+        choices=["sequential", "parallel"],
+        help="Execution mode (default: parallel)",
+    )
+    parser.add_argument(
+        "--queries",
+        type=int,
+        default=100,
+        help="Number of queries to test (default: 100)",
+    )
+    args = parser.parse_args()
+
+    print(f"Running benchmark in {args.mode} mode with {args.queries} queries...")
+
+    config = setup_configuration(args.mode)
+    test_data = load_test_data(args.queries)
     faiss_index = setup_vector_store()
 
     guardrail = Guardrail(
@@ -76,7 +92,7 @@ def main():
             blocked_count += 1
 
         if (i + 1) % 100 == 0:
-            print(f"Processed {i + 1}/1000 queries...")
+            print(f"Processed {i + 1}/{args.queries} queries...")
 
     total_time = time.time() - start_time
     accuracy = correct_predictions / len(test_data)
