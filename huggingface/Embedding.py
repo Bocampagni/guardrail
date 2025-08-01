@@ -7,6 +7,7 @@ def transform(query: str):
     embedding_model = SentenceTransformer(MODEL)
     return embedding_model.encode(query)
 
+
 def load_embedding_model():
     """
     Load the embedding model.

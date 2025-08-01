@@ -1,8 +1,8 @@
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
+import logging
+
 import torch
 import transformers
-
-import logging
+from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
 
 logging.getLogger("torch").disabled = True
 transformers.logging.set_verbosity_error()
@@ -26,6 +26,7 @@ def load_model():
         max_length=512,
         device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
     )
+
 
 def classify_text(query: str):
     tokenizer = AutoTokenizer.from_pretrained(TOKENIZER)

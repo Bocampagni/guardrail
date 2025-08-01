@@ -23,7 +23,7 @@ SeloD + SeloF + SeloS + SeloR
 
 # Informações básicas
 
-- **Sistema operacional suportado**: Linux, macOS, Windows
+- **Sistema operacional suportado**: Linux
 
 - **Requisitos de hardware**:
 
@@ -48,14 +48,6 @@ SeloD + SeloF + SeloS + SeloR
 - `transformers`, `torch` — modelo DeBERTa da ProtectAI
 - `uv` — ambiente reprodutível
 
-Para instalar:
-
-```bash
-git clone git@github.com:Bocampagni/guardrail.git
-cd guardrail
-uv sync
-```
-
 # Preocupações com segurança
 
 - A entrada é apenas texto, sem execução externa.
@@ -79,7 +71,10 @@ uv run example.py
 Saída esperada:
 
 ```json
-{'blocked': False, 'reason': 'no reason'}
+{
+  'blocked': False, 
+  'reason': 'no reason'
+}
 ```
 
 # Experimentos

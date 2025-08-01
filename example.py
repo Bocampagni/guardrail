@@ -1,6 +1,7 @@
-from guardrail import Guardrail
 import dotenv
 import faiss
+
+from guardrail import Guardrail
 
 if __name__ == "__main__":
     dotenv.load_dotenv()

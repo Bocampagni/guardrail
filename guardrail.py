@@ -225,8 +225,10 @@ class Guardrail:
             )
 
             normalized_malicious = malicious_similarity / self.similarity_upper_bound
-            normalized_anomaly = 0 if anomaly_score < self.anomaly_upper_bound else min(
-                anomaly_score / self.anomaly_upper_bound, 1.0
+            normalized_anomaly = (
+                0
+                if anomaly_score < self.anomaly_upper_bound
+                else min(anomaly_score / self.anomaly_upper_bound, 1.0)
             )
             normalized_entropy = (
                 0
